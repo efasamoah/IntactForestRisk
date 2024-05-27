@@ -18,7 +18,7 @@ topsis <- function(X, W, is_benefit, std = FALSE) {
   d_worst <- sqrt(rowSums((sweep(X_weighted, 2, ideal_worst, `-`))^2))
   
   # Calculate the relative closeness to the ideal solution
-  closeness <- d_worst / (d_best + d_worst)
+  closeness <- d_best / (d_best + d_worst)
   
   # Rank the alternatives based on their closeness to the ideal solution
   # ranks <- order(closeness, decreasing = TRUE)/length(closeness)
