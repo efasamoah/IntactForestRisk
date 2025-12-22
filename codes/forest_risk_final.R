@@ -91,12 +91,6 @@ intactness$a_sum_high_int[is.na(intactness$a_sum_high_int)] <- 0
 #all.data$ssp5_agric <- apply( all.data[,c("ssp5_c3ann","ssp5_c3nfx","ssp5_c3per","ssp5_c4ann")],1,mean)
 #https://www.nature.com/articles/s41586-024-07264-9
 
-z_score_brk <- function(x) {
-  x = sign(x)*log10(abs(x)+0.0001)
-  x = scale(x)[,1]
-  xbin <- as.numeric(cut(x, breaks = c(-Inf, -1.282, -0.675, 0.000, 0.675, 1.282, Inf), labels = seq(0,5,1)))
-  return(xbin)
-}
 
 all.data <- all.data %>% mutate( 
   ssp5_c3ann_nd = (ifelse(ssp5_c3ann <=0, 0, ssp5_c3ann)),
@@ -133,6 +127,13 @@ rm(all.data.fnal, areal_sum_high, data_info, df1, lu_risk, intactness, exposureN
 ######################################################################################################
 #CLIMATE RISK INDEX FOR EARTH'S FOREST
 ######################################################################################################
+z_score_brk <- function(x) {
+  x = sign(x)*log10(abs(x)+0.0001)
+  x = scale(x)[,1]
+  xbin <- as.numeric(cut(x, breaks = c(-Inf, -1.282, -0.675, 0.000, 0.675, 1.282, Inf), labels = seq(0,5,1)))
+  return(xbin)
+}
+
 
 source("./codes/gmean.R")
 
@@ -226,7 +227,8 @@ nrow(filter(testing, risk.rcp85<=0.33))/nrow(testing)
 # (za <- rgeoda::natural_breaks(k=4, as.data.frame(testing[,"risk.rcp85"])))
 
 z_score_brk(testing$luse_bin)
-scale(testing$luse_bin)
+(scale(testing$luse_bin))
+testing$luse_bin_sc <- scales::rescale(log10(round(testing$luse_bin, 4)+0.001))
 
 testing <- testing %>% 
   mutate( 
@@ -235,7 +237,7 @@ testing <- testing %>%
     vul_brk = factor(ifelse(risk.rcp85 >= .90, "Very high", ifelse(risk.rcp85 >= .66, "High", ifelse(risk.rcp85 >= .33, "Moderate", "Low"))))  )
 
 (df <- testing %>% group_by(vul_brk, luse_brk) %>% summarise(N = n()) %>% ungroup())
-write.csv(df, "data.csv")
+# write.csv(df, "data.csv")
 
 
 df1 <- testing[,c("ECO_ID","vul_brk","luse_brk")]
@@ -259,10 +261,10 @@ levels(df1$variable) <- c("CV", "LCR"); df1$variable <- factor(df1$variable, lev
 library(ggsankey)
 
 d <- data.frame(testing[,c("vul_brk", "luse_brk")]) %>% na.omit()
-names(d) <- c('Vulnerability', 'Landuse')
+names(d) <- c('FV', 'LC')
 
 TotalCount = nrow(d)
-df <- d %>%  make_long(Vulnerability, Landuse)
+df <- d %>%  make_long("FV", "LC")
 dagg <- df %>% dplyr::group_by(x,node)%>% tally() %>%  dplyr::mutate(pct = n/TotalCount)
 df2 <- merge(df, dagg, by.x = c("x","node"), by.y = c("x","node"), all.x = TRUE)
 df2$node <- factor(df2$node, levels = c("Low","Moderate","High","Very high"))
@@ -270,21 +272,32 @@ df2$node <- factor(df2$node, levels = c("Low","Moderate","High","Very high"))
 df2$type <- "Global"
 
 (pl <- ggplot(df2, aes(x = x, next_x = next_x, node = node, next_node = next_node, fill = node, 
-                      #label = paste0(node," n=", n, "\n",'(',  round(pct* 100,0), '%)' )
-                      label = paste0(round(pct* 100,0),"%","\n",'('," n=", n,' )' )
-                      #label = n
+                      # label = paste0(node," n=", n, "\n",'(',  round(pct* 100,0), '%)' )
+                      # label = paste0(round(pct* 100,0),"%","\n",'('," n=", n,' )' ),
+                      label = paste0(round(pct* 100,0),"%","\n",'(', n,')' )
                       )) +
   geom_sankey(flow.alpha = 0.5,  color = "gray40", show.legend = TRUE, lwd = 0.1) + 
-  geom_sankey_label(size = 1.5, color = "black", fill= "white")+
+  geom_sankey_label(size = 3, color = "black", fill= NA, 
+                    label.padding = unit(0, "lines"), # Remove padding
+                    label.size = NA # Remove the border completely
+                    )+
   theme_bw() +
-    #facet_grid(~type)+
-  theme(legend.position = "top", axis.title = element_blank(), axis.text.y = element_blank(), axis.ticks = element_blank(), panel.grid = element_blank(),panel.border = element_blank(),
+  theme(legend.position = "bottom", 
+        axis.title = element_blank(), 
+        axis.text.y = element_blank(), 
+        axis.ticks = element_blank(), 
+        axis.text.x = element_text(size = 18),
+        panel.grid = element_blank(),
+        panel.border = element_blank(),
+        legend.spacing.x = unit(0, 'cm'),
+        legend.key.width = unit(.25, 'cm'),
+        legend.key.height = unit(.25, 'cm'),
         strip.background = element_rect(color=NA, fill="grey95", linewidth=1.5, linetype="solid")
-        )+
-  scale_x_discrete(expand = c(0,0))+#scale_y_continuous(expand = c(0,0)) + 
+        ) + 
+    scale_x_discrete(expand = c(0.01,0.01))+#scale_y_continuous(expand = c(0,0)) + 
     scale_fill_manual(name = "", values = c("Very high" = "darkred","High" = "orange4", "Moderate" = "dodgerblue4", "Low" = "grey") ))
 
-ggsave(plot = pl, "figs/risk_sankey.png", dpi = 1200, width = 4, height = 4)
+ggsave(plot = pl, "figs/risk_sankey_new.png", dpi = 1200, width = 4, height = 4)
 
 
 # levels(factor(testing$BIOME_NAME))
@@ -343,7 +356,7 @@ ggsave(plot = pl, "figs/risk_sankey.png", dpi = 1200, width = 4, height = 4)
 source("codes/colmatrix.R")
 
 # Define the number of breaks
-nBreaks <- 10
+nBreaks <- 99
 
 # Create the colour matrix
 #upperleft = "#34C21B", upperright = "#FFFFFF", bottomleft = "#595757",  bottomright = "#A874B8",
@@ -362,8 +375,8 @@ lgdBiv <- BivLegend$data; names(lgdBiv) <- c("binY", "binX", "BivCol", "UID")
 
 #Climate risk and FLII overlaps
 bivar.data <- cbind.data.frame( ECO_ID = testing$ECO_ID,
-                                binY = ntile(testing$risk.rcp85, 10),
-                                binX = ntile(testing$luse_, 10)) %>% inner_join(y = lgdBiv, by = c("binY", "binX"))
+                                binY = ntile(testing$risk.rcp85, 99),
+                                binX = ntile(testing$luse_, 99)) %>% inner_join(y = lgdBiv, by = c("binY", "binX"))
 
 baseline_shp <- merge(risk_cood, bivar.data, by = "ECO_ID", all.y = TRUE)
 (risk.map.c1 <- ggplot()+
@@ -416,68 +429,83 @@ summary(testing$climate)
 nrow(subset(testing, climate>=.5))/nrow(testing)
 View(subset(testing, climate>=.5))
 
-(qbrks1 =  quantile((testing$climate), probs = seq(0,1,0.1)))
-testing$exp.bin <- cut(testing$clim_rcp85_prop, breaks =qbrks1, include.lowest = TRUE)
-levels(testing$exp.bin) <- c("<0.02", round(qbrks1[-c(1,2,11)], 2),"<1")
 
-(qbrks2 =  quantile(abs(testing$integrity), probs = seq(0,1,0.1)))
-testing$ac.bin <- cut(abs(testing$integrity), breaks =qbrks2, include.lowest = TRUE)
+
+qbrks1 <- classInt::classIntervals(testing$vocc_rcp85, style = "quantile")
+
+
+
+
+# (qbrks1 =  quantile((testing$vocc_rcp85), probs = seq(0,1,0.1)))
+# testing$exp.bin <- cut(testing$vocc_rcp85, breaks =qbrks1, include.lowest = TRUE)
+# levels(testing$exp.bin) <- c("<0.02", round(qbrks1[-c(1,2,11)], 2),"<1")
+
+qbrks2 <- classInt::classIntervals(testing$intactness, style = "quantile")
+# (qbrks2 =  quantile(abs(testing$integrity), probs = seq(0,1,0.1)))
+testing$ac.bin <- cut(testing$intactness, breaks = qbrks2$brks, include.lowest = TRUE)
 levels(testing$ac.bin) <- c(".48", round(qbrks2[-c(1,2,11)],2),"10")
 
-(qbrks3 <- quantile(testing$landuse, probs = seq(0,1,0.1)))
-testing$deg.bin <- cut(testing$landuse,breaks =qbrks3, include.lowest = TRUE)
-levels(testing$deg.bin) <- c(".21", round(qbrks3[-c(1,2,11)], 2),"<1")
+qbrks3 <- classInt::classIntervals(abs(testing$luse_bin_sc), n = 10, style = "quantile")
+# (qbrks3 <- quantile(testing$landuse, probs = seq(0,1,0.1)))
+testing$deg.bin <- cut(testing$luse_bin_sc, breaks = qbrks3$brks, include.lowest = T)
+levels(testing$deg.bin) <- c("<.22", round(qbrks3$brks[-c(1,2)], 2))
 
 #PLOT EXPOSURE TO FOREST LOSS
-risk.exp <- ggplot()+
+risk.exp <- ggplot() +
   geom_sf(data=bbox,fill=NA,lwd=.05,colour="grey50")+
-  geom_raster(data=merge(dat_coods,testing[,c("ECO_ID","exp.bin")],by ="ECO_ID" ,all.y = TRUE),
-              aes(x,y,fill=exp.bin))+
+  geom_raster(data=merge(risk_cood, testing[,c("ECO_ID","vocc_rcp85")],by ="ECO_ID" ,all.y = TRUE),
+              aes(x,y,fill=vocc_rcp85))+
   geom_sf(data=land, fill=NA, colour = "grey50", lwd=0.01)+
-  scale_fill_manual(name ="", values = colorRampPalette(brewer.pal(9, "Reds"))(10))+
+  # scale_fill_manual(name ="", values = colorRampPalette(brewer.pal(9, "Reds"))(10))+
+  scale_fill_gradient(name ="", breaks = qbrks1$brks, label = round(nbrks1$brks, 2), low = "white", high = "red2", limits = c(0, 1) )+
   theme_void(base_size = 8)+labs(title = "A")+
   theme(legend.position = "right",
         legend.spacing.x = unit(0, 'cm'),
         legend.key.width = unit(.1, 'cm'),
         legend.key.height = unit(.25, 'cm'))
-rsk.inset1 <- ggplot(testing, aes(x = clim_rcp85_prop, after_stat(count))) + geom_density(n=10, colour = "red4", lwd = .3)+
+rsk.inset1 <- ggplot(testing, aes(x = vocc_rcp85, after_stat(count))) + geom_density(n=10, colour = "red4", lwd = .3)+
   theme_classic(base_size = 3)+theme(panel.grid.major = element_blank())+labs(x = "Degree of exposure", y = "Number of forest types")
 risk.exp <- risk.exp + annotation_custom(ggplotGrob(rsk.inset1), ymin=-.2e6, ymax = -8e6, xmin = -17e6, xmax = -8.5e6)
 
 #PLOT ADAPTIVE CAPACITY
 risk.ac <- ggplot() +
   geom_sf(data=bbox,fill=NA,lwd=.05,colour="grey50")+
-  geom_raster(data=merge(dat_coods,testing[,c("ECO_ID","ac.bin")],by ="ECO_ID" ,all.y = TRUE), 
-              aes(x,y,fill=ac.bin))+
+  geom_raster(data=merge(risk_cood,testing[,c("ECO_ID","intactness")],by ="ECO_ID" ,all.y = TRUE), 
+              aes(x,y,fill=intactness))+
   geom_sf(data=land, fill=NA, colour = "grey50", lwd=0.01)+
-  scale_fill_manual(name ="", values = colorRampPalette(brewer.pal(9, "Greens"))(10))+
+  # scale_fill_manual(name ="", values = colorRampPalette(brewer.pal(9, "Greens"))(10))+
+  scale_fill_gradient(name ="", breaks = qbrks2$brks, label = round(qbrks2$brks, 2), low = "white", high = "green4", limits = c(0, 1) )+
   theme_void(base_size = 8)+labs(title = "B")+
   theme(legend.position = "right",
         legend.spacing.x = unit(0, 'cm'),
         legend.key.width = unit(.1, 'cm'),
         legend.key.height = unit(.25, 'cm'))
-rsk.inset3 <- ggplot(testing, aes(x = integrity, after_stat(count))) + geom_density(n=10, colour = "green4", lwd = .3)+
-  theme_classic(base_size = 3)+theme(panel.grid.major = element_blank())+labs(x = "Degree of forest integrity", y = "Number of forest types")
-risk.ac <- risk.ac + annotation_custom(ggplotGrob(rsk.inset3), ymin=-.2e6, ymax = -8e6, xmin = -17e6, xmax = -8.5e6)
-
+rsk.inset3 <- ggplot(testing, aes(x = intactness, after_stat(count))) + geom_density(n=10, colour = "green4", lwd = 1)+
+  theme_classic(base_size = 8)+theme(panel.grid.major = element_blank())+labs(x = "Degree of forest integrity", y = "Number of forest types")
+ggsave(plot = rsk.inset3, "./figs/intrigtyline.png", dpi = 1200, width = 4, height = 4)
+# risk.ac <- risk.ac + annotation_custom(ggplotGrob(rsk.inset3), ymin=-.2e6, ymax = -8e6, xmin = -17e6, xmax = -8.5e6)
 
 #PLOT EXPOSURE TO FOREST LOSS
 risk.degr <- ggplot() +
-  geom_sf(data=bbox,fill=NA,lwd=.05,colour="grey50")+
-  geom_tile(data=merge(dat_coods,testing[,c("ECO_ID","deg.bin")],by ="ECO_ID" ,all.y = TRUE), 
-            aes(x,y,fill=deg.bin))+
-  geom_sf(data=land, fill=NA, colour = "grey50", lwd=0.01)+
-  #scale_fill_viridis_c(name ="", option = "A",trans="sqrt", limits = c(0,1))+
+  geom_sf(data = bbox, fill = NA, lwd = .05, colour = "grey50")+
+  geom_tile(data = merge(risk_cood,testing[,c("ECO_ID", "deg.bin")], by = "ECO_ID", all.y = TRUE), 
+            aes(x, y, fill = deg.bin))+
+  geom_sf(data = land, fill = NA, colour = "grey50", lwd=0.01)+
+  # scale_fill_viridis_c(name ="", option = "A",trans="sqrt", limits = c(0,1))+
   scale_fill_manual(name ="", values = colorRampPalette(brewer.pal(9, "Blues"))(10))+
-  theme_void(base_size = 8)+labs(title = "C")+
+  theme_void(base_size = 8)+
+  # labs(title = "C")+
   theme(legend.position = "right",
         legend.spacing.x = unit(0, 'cm'),
         legend.key.width = unit(.1, 'cm'),
         legend.key.height = unit(.25, 'cm'))
+ggsave(plot = risk.degr, "./figs/degMap.png", dpi = 1200, width = 6.5, height = 4)
 
-rsk.inset3 <- ggplot(testing, aes(x = landuse, after_stat(count))) + geom_density(n=10, colour = "dodgerblue4", lwd = .3)+
-  theme_classic(base_size = 3)+theme(panel.grid.major = element_blank())+labs(x = "Degree of integrity loss", y = "Number of forest types")
-risk.degr <- risk.degr + annotation_custom(ggplotGrob(rsk.inset3), ymin=-.2e6, ymax = -8e6, xmin = -17e6, xmax = -8.5e6)
+
+rsk.inset3 <- ggplot(testing, aes(x = luse_bin_sc, after_stat(count))) + geom_density(n=10, colour = "dodgerblue4", lwd = 1)+
+  theme_classic(base_size = 18)+theme(panel.grid.major = element_blank())+labs(x = "Degree of integrity loss", y = "Number of forest types")
+# risk.degr <- risk.degr + annotation_custom(ggplotGrob(rsk.inset3), ymin=-.2e6, ymax = -8e6, xmin = -17e6, xmax = -8.5e6)
+ggsave(plot = rsk.inset3, "./figs/luseline.png", dpi = 1200, width = 4, height = 4)
 
 library(patchwork)
 figs <- (risk.exp + risk.ac + risk.degr + plot_layout(ncol = 1))
