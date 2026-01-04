@@ -20,6 +20,7 @@ writeRaster(climateVelocity,
 
 # primf, primn, secdf, secdn, urban, c3ann, c4ann, c3per, c4per, c3nfx, pastr, range, secmb, secma
 
+# SSP5-RCP8.5
 land_use_states <- "E:/LUH/LUH2_v2 - 2015-2100/rcp8.5/ssp585_states_2015-2100.nc"
 vlst <- c("primf", "secdf")
 
@@ -44,7 +45,31 @@ writeRaster(land_use_2050_proj,
             overwrite = TRUE
 )
 
+# RCP2.6
+land_use_states <- "E:/LUH/LUH2_v2 - 2015-2100/rcp2.6/ssp126_states_2015-2100.nc"
+vlst <- c("primf", "secdf")
 
+land_use_rcp26 <- list()
+for(var in vlst) {
+  rr <- rast(land_use_states, subds = var)
+  # Get the time values
+  t <- time(rr)
+  
+  land_use_rcp26[[var]] <- app(rr[[which(t >= 2045 & t <= 2055)]], "mean", na.rm = TRUE)
+}
+
+land_use_rcp26 <- rast(land_use_rcp26)
+land_use_rcp26 <- app(land_use_rcp26, "sum", na.rm = TRUE)
+plot(land_use_rcp26)
+
+land_use_rcp26_proj <- project(land_use_rcp26, forest_integrity, method = "near")
+names(land_use_rcp26_proj) <- "forest_cover_2050_ssp126"
+
+writeRaster(land_use_rcp26_proj, 
+            file.path("./data/raw_data/pre_processed", paste0(names(land_use_rcp26_proj), ".tif")), 
+            overwrite = TRUE
+)
+# Historical 
 land_use_states <- "E:/LUH/LUH2 v2h 850-2015 AD/states.nc"
 land_use_current <- list()
 
@@ -69,6 +94,7 @@ writeRaster(land_use_current_proj,
             overwrite = TRUE
 )
 
+# List all files
 all_data_r <- rast(list.files("./data/raw_data/pre_processed", "\\.tif$", full.names = TRUE))
 all_data_r <- as.data.frame(all_data_r, xy = TRUE)
 all_data_r <- dplyr::filter(all_data_r, !is.na(eco_id))
@@ -76,7 +102,7 @@ all_data_r <- dplyr::filter(all_data_r, !is.na(eco_id))
 forest_data <- dplyr::filter(all_data_r, !is.na(forIntegrity))
 colnames(forest_data)[colnames(forest_data) == "eco_id"] <- "ECO_ID"
 
-# Import ecoregions attributes
+# Import Ecoregions Attributes
 ecoregions <- read.csv("./data/ecoregion_attributes.csv")
 forest_data_final <- merge(forest_data, ecoregions, by = "ECO_ID", all.x = TRUE)
 
@@ -106,11 +132,17 @@ library(RColorBrewer)
 all.data <- readRDS("./data/ForestRiskDec2025.rds")
 head(all.data)
 
-land_ne <- ne_countries(scale = 50, returnclass = "sf") |> st_transform(crs = "ESRI:54009")
+land_ne <- ne_countries(
+  scale = 50, returnclass = "sf"
+) |> st_transform(crs = "ESRI:54009")
 land_ne <- land_ne[,c("admin", "adm0_a3")]
 
-bbox_ne <- ne_download(scale = 110, type = "wgs84_bounding_box", category = "physical", returnclass = "sf") |> st_transform(crs = "ESRI:54009")
-
+bbox_ne <- ne_download(
+  scale = 110, 
+  type = "wgs84_bounding_box", 
+  category = "physical",
+  returnclass = "sf"
+) |> st_transform(crs = "ESRI:54009")
 
 ###########################################################################
 # CLIMATE EXPOSURE
@@ -160,43 +192,51 @@ ggplot() +
 
 # Calculate proportional change (bounded) for SSP5-8.5
 # Assuming LC values are percentages or areas
-all.data$lu_proportion_change <- with(
-  all.data, 
-  (forest_cover_2050_ssp585 - all.data$forest_cover_2015)
+all.data <- all.data %>% mutate(
+  forest_change_ssp585 = (forest_cover_2050_ssp585 - forest_cover_2015) / forest_cover_2015,
+  forest_change_ssp126 = (forest_cover_2050_ssp126 - forest_cover_2015) / forest_cover_2015
 )
 
 # Check the distribution
-hist(all.data$lu_proportion_change, breaks = 30, 
+hist(all.data$forest_change_ssp585, breaks = 30, 
      main = "Land Use Change Distribution (SSP5-8.5)",
      xlab = "Change in Land Cover")
 
 # Handle edge cases
-all.data$lu_proportion_change[is.infinite(all.data$lu_proportion_change)] <- 0
-all.data$lu_proportion_change[is.na(all.data$lu_proportion_change)] <- 0
+all.data$forest_change_ssp585[is.infinite(all.data$forest_change_ssp585)] <- 0
+all.data$forest_change_ssp585[is.na(all.data$forest_change_ssp585)] <- 0
+
+all.data$forest_change_ssp126[is.infinite(all.data$forest_change_ssp126)] <- 0
+all.data$forest_change_ssp126[is.na(all.data$forest_change_ssp126)] <- 0
 
 # Calculate integrity with bounds checking
-# If forest loss: integrity decreases
-# If forest gain: integrity stays same or increases slightly
-all.data$integrity_ssp_585 <- all.data$forIntegrity * 
-  pmax(0, pmin(1, 1 + all.data$lu_proportion_change))
+# If forest loss: integrity decreases and if forest gain: integrity stays same or increases slightly
+all.data <- all.data %>% mutate(
+  integrity_ssp585 = forIntegrity * pmax(0, pmin(1, 1 + forest_change_ssp585)),
+  integrity_ssp126 = forIntegrity * pmax(0, pmin(1, 1 + forest_change_ssp126))
+)
 
 # Estimate AC
 all.data  <- all.data %>% 
   group_by(ECO_ID) %>% 
-  mutate(total_forest_pixels = n(), 
-         current_integrity = sum(forIntegrity, na.rm = TRUE) / (10000 * total_forest_pixels),
-         future_integrity = sum(integrity_ssp_585, na.rm = TRUE) / (10000 * total_forest_pixels),
-         
-         # RISK METRIC
-         future_risk = sqrt(forest_exposure_rcp85^2 + (1-future_integrity)^2),
-         current_risk = sqrt(forest_exposure_hist^2 + (1-current_integrity)^2),
-         
-         # Risk without degradation
-         prime_risk = sqrt(forest_exposure_rcp85^2 + (1-current_integrity)^2)
+  mutate(
+    total_forest_pixels = n(), 
+    
+    current_integrity = sum(forIntegrity, na.rm = TRUE) / (10000 * total_forest_pixels),
+    future_integrity_ssp585 = sum(integrity_ssp585, na.rm = TRUE) / (10000 * total_forest_pixels),
+    future_integrity_ssp126 = sum(integrity_ssp126, na.rm = TRUE) / (10000 * total_forest_pixels),
+    
+    # RISK METRIC
+    future_risk_ssp585 = sqrt(forest_exposure_rcp85^2 + (1-future_integrity_ssp585)^2),
+    future_risk_ssp126 = sqrt(forest_exposure_rcp26^2 + (1-future_integrity_ssp126)^2),
+    current_risk = sqrt(forest_exposure_hist^2 + (1-current_integrity)^2),
+    
+    # Risk without degradation
+    prime_risk = sqrt(forest_exposure_rcp85^2 + (1-current_integrity)^2)
   ) %>% ungroup()
 
 # Create a copy
-with(all.data, plot(future_risk, current_risk))
+with(all.data, plot(future_risk_ssp585, current_risk))
 head(all.data)
 
 # Include lowest value in first bin
@@ -218,33 +258,12 @@ risk_colors <- c(
   "Very High" = "#d73027"   # Dark red
 )
 
-all.data$risk_category_future <- cut(all.data$future_risk, 
-                                     breaks = breaks, 
-                                     labels = labels, 
-                                     include.lowest = TRUE)
+all.data$risk_category_ssp585 <- cut(all.data$future_risk_ssp585, breaks = breaks, labels = labels, include.lowest = TRUE)
+all.data$risk_category_ssp126 <- cut(all.data$future_risk_ssp126, breaks = breaks, labels = labels, include.lowest = TRUE)
+all.data$risk_category_current <- cut(all.data$current_risk, breaks = breaks, labels = labels, include.lowest = TRUE)
 
-all.data$risk_category_current <- cut(all.data$current_risk, 
-                                      breaks = breaks, 
-                                      labels = labels, 
-                                      include.lowest = TRUE)
+# CURRENT RISK MAP
 p1 <- ggplot() + 
-  geom_sf(data = bbox_ne, fill = NA)+
-  geom_tile(data = filter(all.data, !is.na(risk_category_future)), aes(x, y, fill = factor(risk_category_future)))+
-  scale_fill_manual(name ="", values = risk_colors) + 
-  # geom_sf(data = land_ne, fill = NA) +
-  theme_void()+ 
-  theme(legend.position = "none")
-
-ggsave(
-  plot = p1,
-  filename = paste0("./Figs/Dec2025/risk_category_future.png"), 
-  dpi = 1200, 
-  width = 17155, 
-  height = 10356,
-  units = "px"
-)
-
-p2 <- ggplot() + 
   geom_sf(data = bbox_ne, fill = NA)+
   geom_tile(data = filter(all.data, !is.na(risk_category_current)), aes(x, y, fill = (risk_category_current)))+
   scale_fill_manual(name ="", values = risk_colors) +
@@ -253,8 +272,44 @@ p2 <- ggplot() +
   theme(legend.position = "none")
 
 ggsave(
-  plot = p2,
+  plot = p1,
   filename = paste0("./Figs/Dec2025/risk_category_current.png"), 
+  dpi = 1200, 
+  width = 17155, 
+  height = 10356,
+  units = "px"
+)
+
+# SOCIOECONOMIC DEVELOPMENT PATHWAY -SSP585
+p2 <- ggplot() + 
+  geom_sf(data = bbox_ne, fill = NA)+
+  geom_tile(data = filter(all.data, !is.na(risk_category_ssp585)), aes(x, y, fill = factor(risk_category_ssp585)))+
+  scale_fill_manual(name ="", values = risk_colors) + 
+  # geom_sf(data = land_ne, fill = NA) +
+  theme_void()+ 
+  theme(legend.position = "none")
+
+ggsave(
+  plot = p2,
+  filename = paste0("./Figs/Dec2025/risk_category_ssp585.png"), 
+  dpi = 1200, 
+  width = 17155, 
+  height = 10356,
+  units = "px"
+)
+
+# SOCIOECONOMIC DEVELOPMENT PATHWAY -SSP585
+p3 <- ggplot() + 
+  geom_sf(data = bbox_ne, fill = NA)+
+  geom_tile(data = filter(all.data, !is.na(risk_category_ssp126)), aes(x, y, fill = factor(risk_category_ssp126)))+
+  scale_fill_manual(name = "", values = risk_colors) + 
+  # geom_sf(data = land_ne, fill = NA) +
+  theme_void()+ 
+  theme(legend.position = "none")
+
+ggsave(
+  plot = p3,
+  filename = paste0("./Figs/Dec2025/risk_category_ssp126.png"), 
   dpi = 1200, 
   width = 17155, 
   height = 10356,
@@ -268,10 +323,11 @@ ggsave(
 
 # Isolate KEY variables
 testing <- aggregate(
-  cbind(current_risk, future_risk, 
-        current_integrity, future_integrity,
-        forest_exposure_rcp85, forest_exposure_hist,
-        forest_exposure_rcp26, prime_risk) ~ 
+  cbind(current_risk, future_risk_ssp585, future_risk_ssp126,
+        forest_exposure_hist, current_integrity,
+        forest_exposure_rcp85, future_integrity_ssp585, 
+        forest_exposure_rcp26, future_integrity_ssp126,
+        prime_risk) ~ 
     ECO_ID + BIOME_NUM + ECO_NAME,
   data = all.data,
   FUN = mean,
@@ -290,28 +346,29 @@ testing_forests <- filter(testing_forests, !is.na(N) & N > 10)
 nrow(testing_forests)
 # [1] 663
 
-testing_forests$risk_category_future <- cut(testing_forests$future_risk, 
-                                            breaks = breaks, 
-                                            labels = labels, 
-                                            include.lowest = TRUE)
+head(testing_forests)
+testing_forests <- testing_forests %>% 
+  mutate(
+    risk_category_ssp585 = cut(future_risk_ssp585, breaks = breaks, labels = labels, include.lowest = TRUE),
+    risk_category_ssp126 = cut(future_risk_ssp126, breaks = breaks, labels = labels, include.lowest = TRUE),
+    risk_category_current = cut(current_risk, breaks = breaks, labels = labels, include.lowest = TRUE)
+  )
+# GLOBAL SUMMARY
+table(testing_forests$risk_category_ssp585)
+prop.table(table(testing_forests$risk_category_ssp585)) * 100
 
-testing_forests$risk_category_current <- cut(testing_forests$current_risk, 
-                                             breaks = breaks, 
-                                             labels = labels, 
-                                             include.lowest = TRUE)
-# Testing Hypothesis
-# Check distribution
-table(testing_forests$risk_category_future)
-prop.table(table(testing_forests$risk_category_future)) * 100
+table(testing_forests$risk_category_ssp126)
+prop.table(table(testing_forests$risk_category_ssp126)) * 100
 
 table(testing_forests$risk_category_current)
 prop.table(table(testing_forests$risk_category_current)) * 100
 
 with(testing_forests, 
-     table(risk_category_current, risk_category_future)
+     table(risk_category_current, risk_category_ssp585)
 )
 
-# Degree of association between RCPS
+# Testing Hypothesis
+# Check distribution
 with(testing_forests, cor.test(future_risk, current_risk, method = "spearman"))
 with(testing_forests, plot(future_risk - current_risk, future_risk))
 
