@@ -272,13 +272,15 @@ p1 <- ggplot() +
   theme(legend.position = "none")
 
 ggsave(
-  plot = p1,
+  plot = p1, 
   filename = paste0("./Figs/Dec2025/risk_category_current.png"), 
-  dpi = 1200, 
-  width = 17155, 
-  height = 10356,
-  units = "px"
+  dpi = 1200,
+  width = 14,
+  height = 8,
+  units = "in",
+  bg = "white"
 )
+
 
 # SOCIOECONOMIC DEVELOPMENT PATHWAY -SSP585
 p2 <- ggplot() + 
@@ -291,11 +293,12 @@ p2 <- ggplot() +
 
 ggsave(
   plot = p2,
-  filename = paste0("./Figs/Dec2025/risk_category_ssp585.png"), 
-  dpi = 1200, 
-  width = 17155, 
-  height = 10356,
-  units = "px"
+  filename = paste0("./Figs/Dec2025/risk_category_ssp585.png"),  
+  dpi = 1200,
+  width = 14,
+  height = 8,
+  units = "in",
+  bg = "white"
 )
 
 # SOCIOECONOMIC DEVELOPMENT PATHWAY -SSP585
@@ -310,10 +313,11 @@ p3 <- ggplot() +
 ggsave(
   plot = p3,
   filename = paste0("./Figs/Dec2025/risk_category_ssp126.png"), 
-  dpi = 1200, 
-  width = 17155, 
-  height = 10356,
-  units = "px"
+  dpi = 1200,
+  width = 14,
+  height = 8,
+  units = "in",
+  bg = "white"
 )
 
 # (rsk.inset1 <- ggplot(all.data, aes(x = forest_exposure_rcp85, after_stat(count))) + geom_density(n = 10, colour = "red4", lwd = 1) +
@@ -353,37 +357,42 @@ testing_forests <- testing_forests %>%
     risk_category_ssp126 = cut(future_risk_ssp126, breaks = breaks, labels = labels, include.lowest = TRUE),
     risk_category_current = cut(current_risk, breaks = breaks, labels = labels, include.lowest = TRUE)
   )
+
 # GLOBAL SUMMARY
 table(testing_forests$risk_category_ssp585)
-prop.table(table(testing_forests$risk_category_ssp585)) * 100
+gbl_sum_ssp585 <- as.data.frame(
+  prop.table(table(testing_forests$risk_category_ssp585)) * 100
+  )
+print(gbl_sum_ssp585)
 
 table(testing_forests$risk_category_ssp126)
-prop.table(table(testing_forests$risk_category_ssp126)) * 100
+gbl_sum_ssp126 <- as.data.frame(
+  prop.table(table(testing_forests$risk_category_ssp126)) * 100
+)
+print(gbl_sum_ssp126)
 
 table(testing_forests$risk_category_current)
-prop.table(table(testing_forests$risk_category_current)) * 100
-
-with(testing_forests, 
-     table(risk_category_current, risk_category_ssp585)
+gbl_sum_current <- as.data.frame(
+  prop.table(table(testing_forests$risk_category_current)) * 100
 )
+print(gbl_sum_current)
+
 
 # Testing Hypothesis
 # Check distribution
-with(testing_forests, cor.test(future_risk, current_risk, method = "spearman"))
-with(testing_forests, plot(future_risk - current_risk, future_risk))
+with(testing_forests, cor.test(future_risk_ssp585, current_risk, method = "spearman"))
+with(testing_forests, plot(future_risk_ssp585 - current_risk, future_risk_ssp585))
 
-with(testing_forests, hist(future_risk))
+with(testing_forests, hist(future_risk_ssp585))
 with(testing_forests, hist(current_risk))
 
 
 
 library(effectsize)
-cohens_d(testing_forests$prime_risk, testing_forests$future_risk)
+cohens_d(testing_forests$prime_risk, testing_forests$future_risk_ssp585)
 
 # Effect size for Mann–Whitney U
-rank_biserial(testing_forests$prime_risk, testing_forests$future_risk)
-
-
+rank_biserial(testing_forests$prime_risk, testing_forests$future_risk_ssp585)
 
 # Simplified version using only biome codes
 testing_forests <- testing_forests %>%
@@ -400,24 +409,43 @@ testing_forests <- testing_forests %>%
   )
 
 # Future Bars
-future_risk_bin <- testing_forests %>% group_by(forest_domain, risk_category_future) %>% summarise(
+future_risk_bin <- testing_forests %>% group_by(forest_domain, risk_category_ssp585) %>% summarise(
   N = n() ) %>% 
   ungroup() %>% 
   group_by(forest_domain) %>% 
   mutate(grp_sum = sum(N), 
-         prop_bins = N/grp_sum)
+         prop_bins = N/grp_sum) %>% 
+  ungroup()
 
+# Add global summaries
+future_risk_bin <- rbind(future_risk_bin, 
+                         data.frame(
+                           forest_domain = "Global",
+                           risk_category_ssp585 = gbl_sum_ssp585$Var1,
+                           N = NA, 
+                           grp_sum = NA,
+                           prop_bins = gbl_sum_ssp585$Freq / 100
+                         ))
 future_risk_bin$forest_domain <- factor(
   future_risk_bin$forest_domain, 
   levels = c(
-    "Other forest types", "Boreal", "Mangroves", "Mediterranean", "Temperate", "Tropical" 
+    "Other forest types", "Boreal", "Mangroves", "Mediterranean", "Temperate", "Tropical", "Global"
   )
 )
 futureRiskBiome <- ggplot(future_risk_bin, 
                           aes(x = forest_domain, 
                               y = prop_bins, 
-                              fill = risk_category_future))+
-  geom_col() + coord_flip()+
+                              fill = risk_category_ssp585))+
+  geom_col() + 
+  geom_text(
+    aes(
+      # label = scales::percent(prop_bins, accuracy = 1)),
+      label = round(100 * prop_bins, 0)),
+    position = position_stack(vjust = 0.5),
+    size = 5,
+    color = "black",
+    fontface = "bold") +
+  coord_flip()+
   scale_fill_manual(name ="", values = risk_colors)+
   scale_y_continuous(name = "", expand = c(0,0), 
                      labels = scales::percent)+
@@ -434,7 +462,8 @@ futureRiskBiome <- ggplot(future_risk_bin,
 print(futureRiskBiome)
 ggsave(plot = futureRiskBiome, 
        "./Figs/Dec2025/futureRiskBiomes.png", 
-       dpi = 1200, width = 8, height = 6)
+       dpi = 1200, width = 10, height = 6)
+
 
 # Current Risk Bars
 current_risk_bin <- testing_forests %>% 
@@ -443,19 +472,39 @@ current_risk_bin <- testing_forests %>%
     N = n() ) %>% ungroup() %>% 
   group_by(forest_domain) %>% 
   mutate(grp_sum = sum(N), 
-         prop_bins = N/grp_sum)
+         prop_bins = N/grp_sum)%>% 
+  ungroup()
+
+# add global summaries
+current_risk_bin <- rbind(current_risk_bin, 
+                          data.frame(
+                            forest_domain = "Global",
+                            risk_category_current = gbl_sum_current$Var1,
+                            N = NA, 
+                            grp_sum = NA,
+                            prop_bins = gbl_sum_current$Freq / 100
+                          ))
 
 current_risk_bin$forest_domain <- factor(
   current_risk_bin$forest_domain, 
   levels = c(
-    "Other forest types", "Boreal", "Mangroves", "Mediterranean", "Temperate", "Tropical" 
+    "Other forest types", "Boreal", "Mangroves", "Mediterranean", "Temperate", "Tropical", "Global"
   )
 )
 CurrentRiskBiome <- ggplot(current_risk_bin, 
                            aes(x = forest_domain, 
                                y = prop_bins, 
                                fill = risk_category_current))+
-  geom_col() + coord_flip()+
+  geom_col() + 
+  geom_text(
+    aes(
+      # label = scales::percent(prop_bins, accuracy = 1)),
+      label = round(100 * prop_bins, 0)),
+    position = position_stack(vjust = 0.5),
+    size = 5,
+    color = "black",
+    fontface = "bold")+
+  coord_flip()+
   scale_fill_manual(name ="", values = risk_colors)+
   scale_y_continuous(name = "", expand = c(0,0), 
                      labels = scales::percent)+
@@ -472,8 +521,67 @@ CurrentRiskBiome <- ggplot(current_risk_bin,
 print(CurrentRiskBiome)
 ggsave(plot = CurrentRiskBiome, 
        "./Figs/Dec2025/CurrentRiskBiome.png", 
-       dpi = 1200, width = 8, height = 6)
+       dpi = 1200, width = 10, height = 6)
 
+
+
+# SPP5-RCP2.6 RISK BARS
+ssp126_risk_bin <- testing_forests %>% 
+  group_by(forest_domain, risk_category_ssp126) %>% 
+  summarise(
+    N = n() ) %>% ungroup() %>% 
+  group_by(forest_domain) %>% 
+  mutate(grp_sum = sum(N), 
+         prop_bins = N/grp_sum)%>% 
+  ungroup()
+
+# add global summaries
+ssp126_risk_bin <- rbind(ssp126_risk_bin, 
+                          data.frame(
+                            forest_domain = "Global",
+                            risk_category_ssp126 = gbl_sum_ssp126$Var1,
+                            N = NA, 
+                            grp_sum = NA,
+                            prop_bins = gbl_sum_ssp126$Freq / 100
+                          ))
+
+ssp126_risk_bin$forest_domain <- factor(
+  ssp126_risk_bin$forest_domain, 
+  levels = c(
+    "Other forest types", "Boreal", "Mangroves", "Mediterranean", "Temperate", "Tropical", "Global"
+  )
+)
+ssp126RiskBiome <- ggplot(ssp126_risk_bin, 
+                           aes(x = forest_domain, 
+                               y = prop_bins, 
+                               fill = risk_category_ssp126))+
+  geom_col() + 
+  geom_text(
+    aes(
+      # label = scales::percent(prop_bins, accuracy = 1)),
+      label = round(100 * prop_bins, 0)),
+    position = position_stack(vjust = 0.5),
+    size = 5,
+    color = "black",
+    fontface = "bold")+
+  coord_flip()+
+  scale_fill_manual(name ="", values = risk_colors)+
+  scale_y_continuous(name = "", expand = c(0,0), 
+                     labels = scales::percent)+
+  scale_x_discrete(name = "") +   
+  theme_classic(base_size = 20) +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5),
+        axis.title = element_text(face = "bold"),
+        axis.text = element_text(size = 20),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.position = "top",
+        plot.margin = margin(20, 60, 10, 10))
+
+print(ssp126RiskBiome)
+ggsave(plot = ssp126RiskBiome, 
+       "./Figs/Dec2025/ssp126RiskBiome.png", 
+       dpi = 1200, width = 10, height = 6)
 
 
 
