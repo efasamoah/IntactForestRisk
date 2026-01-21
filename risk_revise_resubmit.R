@@ -264,12 +264,25 @@ all.data$risk_category_current <- cut(all.data$current_risk, breaks = breaks, la
 
 # CURRENT RISK MAP
 p1 <- ggplot() + 
-  geom_sf(data = bbox_ne, fill = NA)+
-  geom_tile(data = filter(all.data, !is.na(risk_category_current)), aes(x, y, fill = (risk_category_current)))+
+  geom_sf(data = bbox_ne, fill = "aliceblue", color = NA, linewidth = 0.5)+
+  geom_sf(data = land_ne, fill = "white", color = "gray40", linewidth = 0.1) +
+  geom_tile(data = filter(all.data, !is.na(risk_category_current)), 
+            aes(x, y, fill = (risk_category_current)))+
   scale_fill_manual(name ="", values = risk_colors) +
-  # geom_sf(data = land_ne, fill = NA)+
-  theme_void() + 
-  theme(legend.position = "none")
+  geom_sf(data = land_ne, fill = NA, color = "gray40", linewidth = 0.1) +
+  theme_void(base_size = 18) + 
+  coord_sf(expand = FALSE) +
+  theme(
+    legend.position = "none",
+    legend.direction = "horizontal",
+    legend.justification = "center",
+    legend.title = element_text(hjust = 0.5, face = "bold", size = 16),
+    legend.text = element_text(size = 14),
+    legend.margin = margin(t = 12, b = 5, l = 0, r = 0),
+    plot.margin = margin(2, 2, 2, 2),
+    panel.background = element_rect(fill = "transparent", color = NA),
+    plot.background = element_rect(fill = "transparent", color = NA)
+  )
 
 ggsave(
   plot = p1, 
@@ -278,18 +291,32 @@ ggsave(
   width = 14,
   height = 8,
   units = "in",
-  bg = "white"
+  bg = "transparent"
 )
 
 
 # SOCIOECONOMIC DEVELOPMENT PATHWAY -SSP585
 p2 <- ggplot() + 
-  geom_sf(data = bbox_ne, fill = NA)+
-  geom_tile(data = filter(all.data, !is.na(risk_category_ssp585)), aes(x, y, fill = factor(risk_category_ssp585)))+
+  geom_sf(data = bbox_ne, fill = "aliceblue", color = NA, linewidth = 0.5)+
+  geom_sf(data = land_ne, fill = "white", color = "gray40", linewidth = 0.1) +
+  geom_tile(data = filter(all.data, !is.na(risk_category_ssp585)), 
+            aes(x, y, fill = factor(risk_category_ssp585))
+  )+
   scale_fill_manual(name ="", values = risk_colors) + 
-  # geom_sf(data = land_ne, fill = NA) +
-  theme_void()+ 
-  theme(legend.position = "none")
+  geom_sf(data = land_ne, fill = NA, color = "gray40", linewidth = 0.1) +
+  theme_void(base_size = 18) + 
+  coord_sf(expand = FALSE) +
+  theme(
+    legend.position = "none",
+    legend.direction = "horizontal",
+    legend.justification = "center",
+    legend.title = element_text(hjust = 0.5, face = "bold", size = 16),
+    legend.text = element_text(size = 14),
+    legend.margin = margin(t = 12, b = 5, l = 0, r = 0),
+    plot.margin = margin(2, 2, 2, 2),
+    panel.background = element_rect(fill = "transparent", color = NA),
+    plot.background = element_rect(fill = "transparent", color = NA)
+  )
 
 ggsave(
   plot = p2,
@@ -298,17 +325,31 @@ ggsave(
   width = 14,
   height = 8,
   units = "in",
-  bg = "white"
+  bg = "transparent"
 )
 
-# SOCIOECONOMIC DEVELOPMENT PATHWAY -SSP585
+# SOCIOECONOMIC DEVELOPMENT PATHWAY -SSP126
 p3 <- ggplot() + 
-  geom_sf(data = bbox_ne, fill = NA)+
-  geom_tile(data = filter(all.data, !is.na(risk_category_ssp126)), aes(x, y, fill = factor(risk_category_ssp126)))+
+  geom_sf(data = bbox_ne, fill = "aliceblue", color = NA, linewidth = 0.5)+
+  geom_sf(data = land_ne, fill = "white", color = "gray40", linewidth = 0.1) +
+  geom_tile(data = filter(all.data, !is.na(risk_category_ssp126)), 
+            aes(x, y, fill = factor(risk_category_ssp126))
+  )+
   scale_fill_manual(name = "", values = risk_colors) + 
-  # geom_sf(data = land_ne, fill = NA) +
-  theme_void()+ 
-  theme(legend.position = "none")
+  geom_sf(data = land_ne, fill = NA, color = "gray40", linewidth = 0.1) +
+  theme_void(base_size = 18) + 
+  coord_sf(expand = FALSE) +
+  theme(
+    legend.position = "none",
+    legend.direction = "horizontal",
+    legend.justification = "center",
+    legend.title = element_text(hjust = 0.5, face = "bold", size = 16),
+    legend.text = element_text(size = 14),
+    legend.margin = margin(t = 12, b = 5, l = 0, r = 0),
+    plot.margin = margin(2, 2, 2, 2),
+    panel.background = element_rect(fill = "transparent", color = NA),
+    plot.background = element_rect(fill = "transparent", color = NA)
+  )
 
 ggsave(
   plot = p3,
@@ -317,7 +358,7 @@ ggsave(
   width = 14,
   height = 8,
   units = "in",
-  bg = "white"
+  bg = "transparent"
 )
 
 # (rsk.inset1 <- ggplot(all.data, aes(x = forest_exposure_rcp85, after_stat(count))) + geom_density(n = 10, colour = "red4", lwd = 1) +
@@ -362,7 +403,7 @@ testing_forests <- testing_forests %>%
 table(testing_forests$risk_category_ssp585)
 gbl_sum_ssp585 <- as.data.frame(
   prop.table(table(testing_forests$risk_category_ssp585)) * 100
-  )
+)
 print(gbl_sum_ssp585)
 
 table(testing_forests$risk_category_ssp126)
@@ -457,12 +498,18 @@ futureRiskBiome <- ggplot(future_risk_bin,
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
         legend.position = "top",
-        plot.margin = margin(20, 60, 10, 10))
+        plot.margin = margin(20, 60, 10, 10),
+        panel.background = element_rect(fill = "transparent", color = NA),
+        plot.background = element_rect(fill = "transparent", color = NA))
 
 print(futureRiskBiome)
 ggsave(plot = futureRiskBiome, 
        "./Figs/Dec2025/futureRiskBiomes.png", 
-       dpi = 1200, width = 10, height = 6)
+       dpi = 1200, 
+       width = 10,
+       height = 6,
+       bg = "transparent"
+       )
 
 
 # Current Risk Bars
@@ -516,16 +563,23 @@ CurrentRiskBiome <- ggplot(current_risk_bin,
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
         legend.position = "top",
-        plot.margin = margin(20, 60, 10, 10))
+        plot.margin = margin(20, 60, 10, 10),
+        panel.background = element_rect(fill = "transparent", color = NA),
+        plot.background = element_rect(fill = "transparent", color = NA))
 
 print(CurrentRiskBiome)
-ggsave(plot = CurrentRiskBiome, 
-       "./Figs/Dec2025/CurrentRiskBiome.png", 
-       dpi = 1200, width = 10, height = 6)
+ggsave(
+  plot = CurrentRiskBiome, 
+  "./Figs/Dec2025/CurrentRiskBiome.png", 
+  dpi = 1200, 
+  width = 10, 
+  height = 6,
+  bg = "transparent"
+)
 
 
 
-# SPP5-RCP2.6 RISK BARS
+# SPP1-RCP2.6 RISK BARS
 ssp126_risk_bin <- testing_forests %>% 
   group_by(forest_domain, risk_category_ssp126) %>% 
   summarise(
@@ -537,13 +591,13 @@ ssp126_risk_bin <- testing_forests %>%
 
 # add global summaries
 ssp126_risk_bin <- rbind(ssp126_risk_bin, 
-                          data.frame(
-                            forest_domain = "Global",
-                            risk_category_ssp126 = gbl_sum_ssp126$Var1,
-                            N = NA, 
-                            grp_sum = NA,
-                            prop_bins = gbl_sum_ssp126$Freq / 100
-                          ))
+                         data.frame(
+                           forest_domain = "Global",
+                           risk_category_ssp126 = gbl_sum_ssp126$Var1,
+                           N = NA, 
+                           grp_sum = NA,
+                           prop_bins = gbl_sum_ssp126$Freq / 100
+                         ))
 
 ssp126_risk_bin$forest_domain <- factor(
   ssp126_risk_bin$forest_domain, 
@@ -552,9 +606,9 @@ ssp126_risk_bin$forest_domain <- factor(
   )
 )
 ssp126RiskBiome <- ggplot(ssp126_risk_bin, 
-                           aes(x = forest_domain, 
-                               y = prop_bins, 
-                               fill = risk_category_ssp126))+
+                          aes(x = forest_domain, 
+                              y = prop_bins, 
+                              fill = risk_category_ssp126))+
   geom_col() + 
   geom_text(
     aes(
@@ -576,39 +630,46 @@ ssp126RiskBiome <- ggplot(ssp126_risk_bin,
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
         legend.position = "top",
-        plot.margin = margin(20, 60, 10, 10))
+        plot.margin = margin(20, 60, 10, 10),
+        panel.background = element_rect(fill = "transparent", color = NA),
+        plot.background = element_rect(fill = "transparent", color = NA))
 
 print(ssp126RiskBiome)
-ggsave(plot = ssp126RiskBiome, 
-       "./Figs/Dec2025/ssp126RiskBiome.png", 
-       dpi = 1200, width = 10, height = 6)
+ggsave(
+  plot = ssp126RiskBiome, 
+  "./Figs/Dec2025/ssp126RiskBiome.png", 
+  dpi = 1200, 
+  width = 10, 
+  height = 6,
+  bg = "transparent"
+)
 
 
 
 library(ggplot2)
 
 # Calculate risk change
-testing_forests$risk_change <- testing_forests$future_risk - testing_forests$current_risk
+testing_forests$risk_change <- testing_forests$future_risk_ssp585 - testing_forests$current_risk
 
 # Calculate medians for reference lines
 median_change <- median(testing_forests$risk_change, na.rm = TRUE)
-median_future <- median(testing_forests$future_risk, na.rm = TRUE)
+median_future <- median(testing_forests$future_risk_ssp585, na.rm = TRUE)
 
 # Get plot limits
 x_range <- range(testing_forests$risk_change, na.rm = TRUE)
-y_range <- range(testing_forests$future_risk, na.rm = TRUE)
+y_range <- range(testing_forests$future_risk_ssp585, na.rm = TRUE)
 y_range[1] <- 0
 
 # Create the plot
-p <- ggplot(testing_forests, aes(x = risk_change, y = future_risk)) +
+p <- ggplot(testing_forests, aes(x = risk_change, y = future_risk_ssp585)) +
   
   # Top header bars
   annotate("rect", xmin = x_range[1], xmax = median_change, 
            ymin = y_range[2], ymax = y_range[2] + (y_range[2] - y_range[1]) * 0.05, 
-           fill = "#5DADE2", alpha = 1) +
+           fill = "dodgerblue4", alpha = 1) +
   annotate("rect", xmin = median_change, xmax = x_range[2], 
            ymin = y_range[2], ymax = y_range[2] + (y_range[2] - y_range[1]) * 0.05, 
-           fill = "#E67E22", alpha = 1) +
+           fill = "darkred", alpha = 1) +
   annotate("text", x = (x_range[1] + median_change) / 2, 
            y = y_range[2] + (y_range[2] - y_range[1]) * 0.025,
            label = "slower increase", color = "white", fontface = "bold", size = 4) +
@@ -619,10 +680,10 @@ p <- ggplot(testing_forests, aes(x = risk_change, y = future_risk)) +
   # Side label bar
   annotate("rect", xmin = x_range[2], xmax = x_range[2] + (x_range[2] - x_range[1]) * 0.05,
            ymin = median_future, ymax = y_range[2], 
-           fill = "#E67E22", alpha = 1) +
+           fill = "darkred", alpha = 1) +
   annotate("rect", xmin = x_range[2], xmax = x_range[2] + (x_range[2] - x_range[1]) * 0.05,
            ymin = y_range[1], ymax = median_future, 
-           fill = "#5DADE2", alpha = 1) +
+           fill = "dodgerblue4", alpha = 1) +
   annotate("text", x = x_range[2] + (x_range[2] - x_range[1]) * 0.025, 
            y = (median_future + y_range[2]) / 2,
            label = "higher risk", angle = 270, color = "white", 
@@ -707,4 +768,173 @@ df2$type <- "Global"
 )
 
 ggsave(plot = pl, "./Figs/Dec2025/risk_sankey.png", dpi = 1200, width = 8, height = 8)
+
+
+
+
+
+
+# Correlation plots
+
+testing_forests
+
+
+
+
+# ------------------------------------------------------------------------------
+# PLOTTING EXPOSURE INDICES
+# ------------------------------------------------------------------------------
+# EXPOSURE - SSP585
+exp_ssp585 <- ggplot() + 
+  geom_sf(data = bbox_ne, fill = "aliceblue", color = "black", linewidth = 0.5) +
+  geom_raster(data = filter(all.data, !is.na(forest_exposure_rcp85)),
+              aes(x, y, fill = forest_exposure_rcp85), interpolate = FALSE) + 
+  scale_fill_gradientn(
+    name = "Climate exposure index",
+    colors = viridis::viridis(100, option = "B", direction = 1),
+    na.value = "transparent",
+    limits = c(0, 1),
+    breaks = c(0, .5, 1),
+    # labels = round(intermediate_values, 1),
+    guide = guide_colorbar(
+      title.position = "top",
+      title.hjust = 0.5,
+      barwidth = unit(15, "lines"),
+      barheight = unit(1, "lines"),
+      frame.colour = "black",
+      frame.linewidth = 0.3,
+      ticks.colour = "black",
+      ticks.linewidth = 0.5
+    )
+  ) + 
+  theme_void(base_size = 18) + 
+  coord_sf(expand = FALSE) +
+  theme(
+    legend.position = "bottom",
+    legend.direction = "horizontal",
+    legend.justification = "center",
+    legend.title = element_text(hjust = 0.5, face = "bold", size = 16),
+    legend.text = element_text(size = 14),
+    legend.margin = margin(t = 12, b = 5, l = 0, r = 0),
+    plot.margin = margin(2, 2, 2, 2),
+    panel.background = element_rect(fill = "white", color = NA),
+    plot.background = element_rect(fill = "white", color = NA)
+  )
+
+ggsave(
+  plot = exp_ssp585,
+  filename = paste0("./Figs/Dec2025/supp_exposure_585.png"), 
+  dpi = 1200,
+  width = 14,
+  height = 8,
+  units = "in",
+  bg = "white"
+)
+
+
+
+
+
+# Integrity - Current
+exp_forest_integrity <- ggplot() + 
+  geom_sf(data = bbox_ne, fill = "aliceblue", color = "black", linewidth = 0.5) +
+  geom_raster(data = filter(all.data, !is.na(current_integrity)),
+              aes(x, y, fill = 1 - current_integrity), interpolate = FALSE) + 
+  scale_fill_gradientn(
+    name = "Inverse integrity index",
+    colors = viridis::viridis(100, option = "B", direction = 1),
+    na.value = "transparent",
+    limits = c(0, 1),
+    breaks = c(0, .5, 1),
+    # labels = round(intermediate_values, 1),
+    guide = guide_colorbar(
+      title.position = "top",
+      title.hjust = 0.5,
+      barwidth = unit(15, "lines"),
+      barheight = unit(1, "lines"),
+      frame.colour = "black",
+      frame.linewidth = 0.3,
+      ticks.colour = "black",
+      ticks.linewidth = 0.5
+    )
+  ) + 
+  theme_void(base_size = 18) + 
+  coord_sf(expand = FALSE) +
+  theme(
+    legend.position = "bottom",
+    legend.direction = "horizontal",
+    legend.justification = "center",
+    legend.title = element_text(hjust = 0.5, face = "bold", size = 16),
+    legend.text = element_text(size = 14),
+    legend.margin = margin(t = 12, b = 5, l = 0, r = 0),
+    plot.margin = margin(2, 2, 2, 2),
+    panel.background = element_rect(fill = "white", color = NA),
+    plot.background = element_rect(fill = "white", color = NA)
+  )
+
+ggsave(
+  plot = exp_forest_integrity,
+  filename = paste0("./Figs/Dec2025/supp_current_integrity.png"), 
+  dpi = 1200,
+  width = 14,
+  height = 8,
+  units = "in",
+  bg = "white"
+)
+
+# Future integrity
+forest_integrity_ssp585 <- ggplot() + 
+  geom_sf(data = bbox_ne, fill = "aliceblue", color = "black", linewidth = 0.5) +
+  geom_raster(data = filter(all.data, !is.na(future_integrity_ssp585)),
+              aes(x, y, fill = 1 - future_integrity_ssp585), interpolate = FALSE) + 
+  scale_fill_gradientn(
+    name = "Inverse integrity index",
+    colors = viridis::viridis(100, option = "B", direction = 1),
+    na.value = "transparent",
+    limits = c(0, 1),
+    breaks = c(0, .5, 1),
+    # labels = round(intermediate_values, 1),
+    guide = guide_colorbar(
+      title.position = "top",
+      title.hjust = 0.5,
+      barwidth = unit(15, "lines"),
+      barheight = unit(1, "lines"),
+      frame.colour = "black",
+      frame.linewidth = 0.3,
+      ticks.colour = "black",
+      ticks.linewidth = 0.5
+    )
+  ) + 
+  theme_void(base_size = 18) + 
+  coord_sf(expand = FALSE) +
+  theme(
+    legend.position = "bottom",
+    legend.direction = "horizontal",
+    legend.justification = "center",
+    legend.title = element_text(hjust = 0.5, face = "bold", size = 16),
+    legend.text = element_text(size = 18),
+    legend.margin = margin(t = 12, b = 5, l = 0, r = 0),
+    plot.margin = margin(2, 2, 2, 2),
+    panel.background = element_rect(fill = "white", color = NA),
+    plot.background = element_rect(fill = "white", color = NA)
+  )
+
+ggsave(
+  plot = forest_integrity_ssp585,
+  filename = paste0("./Figs/Dec2025/supp_forest_integrity_ssp585.png"), 
+  dpi = 1200,
+  width = 14,
+  height = 8,
+  units = "in",
+  bg = "white"
+)
+
+
+
+
+
+
+
+
+
 
